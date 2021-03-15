@@ -1,10 +1,18 @@
 const SHA256 = require('crypto-js/sha256')
+
+class Transaction {
+	constructor(fromAddress, toAddress, amount) {
+		this.fromAddress = fromAddress;
+		this.toAddress = toAddress;
+		this.amount = amount;
+	}
+}
+
 class Block {
-	constructor(index, timestamp, data, previousHash = '')
+	constructor(timestamp, transactions, previousHash = '')
 	{
-		this.index = index;
 		this.timestamp = timestamp;
-		this.data = data;
+		this.transactions = transactions || [];
 		this.previousHash = previousHash;
 		this.hash = this.calculateHash();
 		this.nonce = 0;
@@ -27,7 +35,9 @@ class Block {
 class Blockchain {
 	constructor() {
 		this.chain = [this.createGenesisBlock()];
-		this.difficulty = 1;
+		this.difficulty = 0;
+		this.pendingTransctions = [];
+		this.miningReward = 100;
 	}
 
 	createGenesisBlock() {
@@ -38,11 +48,44 @@ class Blockchain {
 		return this.chain[this.chain.length - 1];		
 	}
 
-	addBlock(newBlock) {
+	/*addBlock(newBlock) {
 		newBlock.previousHash = this.getLastestBlock().hash;
 		//newBlock.hash = newBlock.calculateHash();
 		newBlock.mineBlock(this.difficulty);
 		this.chain.push(newBlock);
+	}
+	*/
+	minePendingTransactions(miningRewardAddress) {
+		let block = new Block(Date.now(), this.pendingTransctions);
+		block.mineBlock(this.difficulty);
+
+		console.log('Block successfully mined !');
+		this.chain.push(block);
+
+		this.pendingTransctions = [
+			new Transaction(null, miningRewardAddress, this.miningReward)
+		];
+	}
+
+	createTransaction(transaction) {
+		this.pendingTransctions.push(transaction);
+	}
+
+	getBalanceOfAddress(address) {
+		let balance = 0;
+		for (const block of this.chain) {
+			for (const trans of block.transactions) {
+				if (trans.fromAddress === address) {
+					balance -= trans.amount;
+				}
+
+				if (trans.toAddress === address) {
+					balance += trans.amount;
+				}
+			}	
+		}
+
+		return balance;
 	}
 
 	isChainValid() {
@@ -77,3 +120,16 @@ jyoCoin.addBlock(new Block(2, '11/07/2017', { amount: 14 }));
 /*console.log('Is blockchain valid ?', jyoCoin.isChainValid());
 console.log(JSON.stringify(jyoCoin, null, 4));
 */
+
+
+let jyoCoin = new Blockchain();
+jyoCoin.createTransaction(new Transaction('address1', 'address2', 100));
+jyoCoin.createTransaction(new Transaction('address2', 'address1', 50));
+
+console.log('\n Start the mining....');
+jyoCoin.minePendingTransactions('jyoti-address');
+console.log('\n Balance of jyoti is ', jyoCoin.getBalanceOfAddress('jyoti-address'));
+
+console.log('\n Start the mining again....');
+jyoCoin.minePendingTransactions('jyoti-address');
+console.log('\n Balance of jyoti is ', jyoCoin.getBalanceOfAddress('jyoti-address'));
